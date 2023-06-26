@@ -23,6 +23,7 @@ Object.values(eventNames).forEach(name => {
 let iabannotate = {};
 
 iabannotate.DEFAULT_HIGHLIGHT_HEIGHT = 16;
+iabannotate.DEFAUTL_HIGHLIGHT_ACTION_CONTEXT = { dragOffset: { x: 0, y: 0 } };
 iabannotate.highlights = [];
 iabannotate.highlightCounter = 0;
 
@@ -61,17 +62,24 @@ function onBookMajorMutation(mutations, observer) {
 	// States
 	let isMouseDown = false;
 	let newlyCreatedHighlight = null;
+	let highlightAction = Object.assign({}, iabannotate.DEFAUTL_HIGHLIGHT_ACTION_CONTEXT);
 
 	eventbox.addEventListener('mousedown', handleMouseDown);
 	eventbox.addEventListener('mousemove', handleMouseMove);
 	eventbox.addEventListener('mouseup', handleMouseUp);
 
+	function resetHighlightAction() {
+		highlightAction = Object.assign({}, iabannotate.DEFAUTL_HIGHLIGHT_ACTION_CONTEXT)
+	}
+
 	function handleMouseDown(e) {
 		isMouseDown = true;
+		resetHighlightAction();
 
 		let hls = iabannotate.highlights.filter(h => h.top < e.layerY && e.layerY < (h.top + h.height));
 		if (hls.length) {
 			newlyCreatedHighlight = hls[hls.length-1];
+			highlightAction.dragOffset.y = e.layerY - newlyCreatedHighlight.top;
 		} else {
 			createNewHighlight(e.layerY);
 		}
@@ -80,7 +88,7 @@ function onBookMajorMutation(mutations, observer) {
 	function handleMouseMove(e) {
 		if (!isMouseDown || newlyCreatedHighlight == null) return false;
 
-		newlyCreatedHighlight.top = (e.layerY - newlyCreatedHighlight.height/2);
+		newlyCreatedHighlight.top = (e.layerY - highlightAction.dragOffset.y);
 		newlyCreatedHighlight.el.style.top = newlyCreatedHighlight.top + 'px';
 	}
 
