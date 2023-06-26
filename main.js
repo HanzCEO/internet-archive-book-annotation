@@ -68,14 +68,20 @@ function onBookMajorMutation(mutations, observer) {
 
 	function handleMouseDown(e) {
 		isMouseDown = true;
-		createNewHighlight(e.layerY);
+
+		let hls = iabannotate.highlights.filter(h => h.top < e.layerY && e.layerY < (h.top + h.height));
+		if (hls.length) {
+			newlyCreatedHighlight = hls[0];
+		} else {
+			createNewHighlight(e.layerY);
+		}
 	}
 
 	function handleMouseMove(e) {
 		if (!isMouseDown || newlyCreatedHighlight == null) return false;
 
-		let hlTop = (e.layerY - newlyCreatedHighlight.height/2) + 'px';
-		newlyCreatedHighlight.top = newlyCreatedHighlight.el.style.top = hlTop;
+		newlyCreatedHighlight.top = (e.layerY - newlyCreatedHighlight.height/2);
+		newlyCreatedHighlight.el.style.top = newlyCreatedHighlight.top + 'px';
 	}
 
 	function handleMouseUp(e) {
@@ -107,9 +113,9 @@ function onBookMajorMutation(mutations, observer) {
 
 		let len_ = iabannotate.highlights.push({
 			id: iabannotate.highlightCounter++,
-			top: hlTop,
-			left: hlLeft,
-			width: hlWidth,
+			top: Number(hlTop.replace('px', '')),
+			left: Number(hlLeft.replace('px', '')),
+			width: Number(hlWidth.replace('px', '')),
 			height: iabannotate.DEFAULT_HIGHLIGHT_HEIGHT,
 			el: highlight
 		});
