@@ -71,7 +71,7 @@ function onBookMajorMutation(mutations, observer) {
 
 		let hls = iabannotate.highlights.filter(h => h.top < e.layerY && e.layerY < (h.top + h.height));
 		if (hls.length) {
-			newlyCreatedHighlight = hls[0];
+			newlyCreatedHighlight = hls[hls.length-1];
 		} else {
 			createNewHighlight(e.layerY);
 		}
