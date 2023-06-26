@@ -29,7 +29,7 @@ iabannotate.highlightCounter = 0;
 
 
 
-function onBookMajorMutation(mutations, observer) {
+async function onBookMajorMutation(mutations, observer) {
 
 	let __mcheck = false; // mutation check done?
 	for (const mutation of mutations) {
@@ -49,6 +49,23 @@ function onBookMajorMutation(mutations, observer) {
 	observer.disconnect();
 
 
+	// Retrieve storage stuff
+	let storage__ = await iabstorageGet("null");
+
+	if (!storage__.counters) {
+		iabstorageSet({ counters: { highlight: 0 } });
+		Object.assign(storage__, { counters: { highlight: 0 } });
+	}
+	
+	if (!storage__.highlights) {
+		iabstorageSet({ highlights: [] });
+		Object.assign(storage__, { highlights: [] });
+	}
+	
+	let storage__counters = storage__.counters;
+	iabannotate.highlightCounter = storage__counters.highlight;
+
+
 	// Set scroll-triggering element width to 100%
 	let bookgeometry = br._modes['mode1Up'].mode1UpLit;
 	let eventbox = br._modes['mode1Up'].mode1UpLit.firstElementChild;
@@ -58,6 +75,13 @@ function onBookMajorMutation(mutations, observer) {
 		// TODO: This is error
 		return window.br.getActivePageContainerElementsForIndex(index ?? window.br.firstIndex)[0].getBoundingClientRect();
 	};
+
+	// Place initial highlights
+	iabannotate.highlights = [];
+	for (const hl of storage__.highlights) {
+		let len_ = iabannotate.highlights.push(hl);
+		iabannotate.highlights[len_ - 1].el = createHighlightEl(hl.top);
+	}
 
 	// States
 	let isMouseDown = false;
@@ -93,11 +117,14 @@ function onBookMajorMutation(mutations, observer) {
 	}
 
 	function handleMouseUp(e) {
+		iabstorageSet({
+			highlights: iabannotate.highlights
+		});
 		isMouseDown = false;
 		newlyCreatedHighlight = null;
 	}
 
-	function createNewHighlight(startLayerY) {
+	function createHighlightEl(startLayerY) {
 		let highlight = document.createElement('div');
 
 		/*
@@ -119,17 +146,28 @@ function onBookMajorMutation(mutations, observer) {
 		let hlWidth = highlight.style.width = pageRect.width + 'px';
 		highlight.style.zIndex = 9;
 
+		bookgeometry.appendChild(highlight);
+
+		return highlight;
+	}
+
+	function createNewHighlight(startLayerY) {
+		let highlight = createHighlightEl(startLayerY);
+
 		let len_ = iabannotate.highlights.push({
 			id: iabannotate.highlightCounter++,
-			top: Number(hlTop.replace('px', '')),
-			left: Number(hlLeft.replace('px', '')),
-			width: Number(hlWidth.replace('px', '')),
+			top: Number(highlight.style.top.replace('px', '')),
+			left: Number(highlight.style.left.replace('px', '')),
+			width: Number(highlight.style.width.replace('px', '')),
 			height: iabannotate.DEFAULT_HIGHLIGHT_HEIGHT,
 			el: highlight
 		});
 		newlyCreatedHighlight = iabannotate.highlights[len_ - 1];
-
-		bookgeometry.appendChild(highlight);
+		// TODO: storage error handling
+		iabstorageSet({
+			highlights: iabannotate.highlights,
+			counters: { highlight: iabannotate.highlightCounter }
+		});
 	}
 
 	
@@ -146,6 +184,39 @@ window.addEventListener('BookReader:PostInit', function(postInit) {
 	iabannotateMO.observe(br._modes['mode1Up'].mode1UpLit, iabannotateMOConf);
 
 });
+
+// Webpage <--> Content Script communication port
+let iabmessageWaitlist = {}
+let iabmessageCounter = 0;
+window.addEventListener('message', (e) => {
+	// TODO: proxy storage to content script
+
+	if (e.data.direction != "iab") return;
+
+	let { data } = e.data;
+	// console.warn(e);
+	let obj = JSON.parse(data);
+
+	iabmessageWaitlist[obj.id](obj.data);
+	delete iabmessageWaitlist[obj.id];
+});
+
+function iabcommunicate(inst, argv, cb) {
+	window.postMessage({
+		direction: 'webpage',
+		data: JSON.stringify({ id: iabmessageCounter++, name: inst, args: argv })
+	});
+
+	iabmessageWaitlist[iabmessageCounter - 1] = cb;
+}
+
+async function iabstorageGet(keys) {
+	return new Promise((resolve) => iabcommunicate('storage.get', [keys], resolve));
+}
+async function iabstorageSet(keys) {
+	return new Promise((resolve) => iabcommunicate('storage.set', [keys], resolve));
+}
+
 
 document.styleSheets[0].insertRule(`
 .iabannotate__highlight_main {
