@@ -1,0 +1,34 @@
+{
+    "manifest_version": 3,
+    "name": "Internet Archive Book Annotation",
+    "version": "0.1",
+
+    "description": "Annotate your Internet Archive Book readings",
+
+    "icons": {
+        "48": "icons/border-48.png"
+    },
+
+    "permissions": [
+    ],
+
+    "content_scripts": [
+        {
+            "matches": ["https://archive.org/details/*"],
+            "js": ["injector.js"]
+        }
+    ],
+
+    "web_accessible_resources": [
+        {
+            "resources": ["main.js"],
+            "matches": ["https://archive.org/details/*"]
+        }
+    ],
+
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "iabannotate@hanz.arpa"
+        }
+    }
+}
